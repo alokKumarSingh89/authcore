@@ -12,9 +12,656 @@ datasource db {
   provider = "postgresql"
 }
 
+/**
+ * |--------------------------------------------------------------------------
+ * | ENUMS
+ * |--------------------------------------------------------------------------
+ */
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  LOCKED
+  SUSPENDED
+  DISABLED
+  DELETED
+}
+
+enum ClientType {
+  PUBLIC
+  CONFIDENTIAL
+  SERVICE
+}
+
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum TokenFamilyStatus {
+  ACTIVE
+  REVOKED
+  COMPROMISED
+  EXPIRED
+}
+
+enum MfaType {
+  TOTP
+  SMS
+  EMAIL
+  PASSKEY
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+  APPLE
+}
+
+enum SigningKeyStatus {
+  ACTIVE
+  RETIRED
+  REVOKED
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  LOGOUT_ALL
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  ACCOUNT_SUSPENDED
+  MFA_ENABLED
+  MFA_DISABLED
+  MFA_FAILED
+  MFA_RECOVERY_CODE_USED
+  REFRESH_TOKEN_REUSE
+  REFRESH_TOKEN_REVOKED
+  CLIENT_CREATED
+  CLIENT_SECRET_ROTATED
+  CLIENT_REVOKED
+  ROLE_CHANGED
+  PERMISSION_CHANGED
+  OAUTH_LOGIN
+  SUSPICIOUS_ACTIVITY
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | USER / IDENTITY
+ * |--------------------------------------------------------------------------
+ */
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String     @id @default(uuid())
+  email     String     @unique
+  phone     String?    @unique
+  firstName String?
+  lastName  String?
+  status    UserStatus @default(PENDING_VERIFICATION)
+
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  credential        Credential?
+  roles             UserRole[]
+  sessions          Session[]
+  tokenFamilies     TokenFamily[]
+  mfaConfigurations MfaConfiguration[]
+  oauthAccounts     OAuthAccount[]
+  securityEvents    SecurityEvent[]
+  auditLogs         AuditLog[]
+  devices           Device[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Credential {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  passwordHash      String
+  passwordChangedAt DateTime?
+  passwordVersion   Int       @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | AUTHORIZATION / RBAC
+ * |--------------------------------------------------------------------------
+ */
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  system      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@index([system])
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  resource    String
+  action      String
+  description String?
+
+  createdAt DateTime @default(now())
+
+  roles   RolePermission[]
+  clients ClientPermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  assignedAt DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | DEVICES / SESSIONS
+ * |--------------------------------------------------------------------------
+ */
+
+model Device {
+  id String @id @default(uuid())
+
+  userId String
+
+  /**
+   * Store a hash/fingerprint rather than sensitive raw device data.
+   */
+  fingerprint String
+
+  name      String?
+  userAgent String?
+  ipAddress String?
+  platform  String?
+
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+  @@index([lastSeenAt])
+}
+
+model Session {
+  id String @id @default(uuid())
+
+  userId   String
+  deviceId String?
+  clientId String?
+
+  status SessionStatus @default(ACTIVE)
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  tokenFamilies TokenFamily[]
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([clientId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | REFRESH TOKENS
+ * |--------------------------------------------------------------------------
+ */
+
+model TokenFamily {
+  id String @id @default(uuid())
+
+  userId    String
+  sessionId String
+
+  status TokenFamilyStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id String @id @default(uuid())
+
+  tokenFamilyId String
+
+  /**
+   * NEVER store the raw refresh token.
+   * Store only a cryptographic hash.
+   */
+  tokenHash String @unique
+
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime
+
+  usedAt    DateTime?
+  revokedAt DateTime?
+
+  /**
+   * Token rotation:
+   * Token A -> Token B -> Token C
+   * A.replacedByTokenId = B.id
+   * B.replacedByTokenId = C.id
+   */
+  replacedByTokenId String? @unique
+
+  tokenFamily TokenFamily @relation(fields: [tokenFamilyId], references: [id], onDelete: Cascade)
+
+  replacedBy RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+
+  replaces RefreshToken? @relation("RefreshTokenReplacement")
+
+  @@index([tokenFamilyId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@index([revokedAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | MFA
+ * |--------------------------------------------------------------------------
+ */
+
+model MfaConfiguration {
+  id String @id @default(uuid())
+
+  userId String
+  type   MfaType
+
+  enabled Boolean @default(false)
+
+  /**
+   * Encrypted secret.
+   * Never store TOTP secret as plaintext.
+   */
+  secretEncrypted String?
+
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recoveryCodes MfaRecoveryCode[]
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([enabled])
+}
+
+model MfaRecoveryCode {
+  id String @id @default(uuid())
+
+  mfaConfigurationId String
+
+  /**
+   * Store hash, not the actual recovery code.
+   */
+  codeHash String @unique
+
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  mfaConfiguration MfaConfiguration @relation(fields: [mfaConfigurationId], references: [id], onDelete: Cascade)
+
+  @@index([mfaConfigurationId])
+  @@index([usedAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | OAUTH
+ * |--------------------------------------------------------------------------
+ */
+
+model OAuthAccount {
+  id String @id @default(uuid())
+
+  userId String
+
+  provider          OAuthProvider
+  providerAccountId String
+
+  /**
+   * OAuth tokens are sensitive.
+   * These fields will contain encrypted values.
+   */
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+
+  expiresAt DateTime?
+  scope     String?
+  tokenType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | SERVICE / APPLICATION IDENTITY
+ * |--------------------------------------------------------------------------
+ */
+
+model Client {
+  id String @id @default(uuid())
+
+  /**
+   * Public identifier sent by applications.
+   * Example:
+   * order-service
+   * payment-service
+   * web-app
+   */
+  clientId String @unique
+
+  name        String
+  description String?
+
+  type   ClientType
+  status ClientStatus @default(ACTIVE)
+
+  /**
+   * OAuth redirect URIs.
+   * For now stored as JSON.
+   * We can normalize this into a separate table later
+   * if OAuth requirements become more complex.
+   */
+  redirectUris Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions       Session[]
+  credentials    ClientCredential[]
+  permissions    ClientPermission[]
+  auditLogs      AuditLog[]
+  securityEvents SecurityEvent[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model ClientCredential {
+  id String @id @default(uuid())
+
+  clientId String
+
+  name String?
+
+  /**
+   * NEVER store the raw client secret.
+   */
+  secretHash String @unique
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model ClientPermission {
+  id String @id @default(uuid())
+
+  clientId     String
+  permissionId String
+
+  assignedAt DateTime @default(now())
+
+  client     Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, permissionId])
+  @@index([clientId])
+  @@index([permissionId])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | SIGNING KEYS
+ * |--------------------------------------------------------------------------
+ */
+
+model SigningKey {
+  id String @id @default(uuid())
+
+  /**
+   * `kid` value used in JWT header.
+   */
+  keyId String @unique
+
+  algorithm String
+  keyType   String
+
+  /**
+   * Public key is safe to expose through JWKS.
+   */
+  publicKey String
+
+  /**
+   * Private key MUST be encrypted.
+   */
+  privateKeyEncrypted String
+
+  status SigningKeyStatus @default(ACTIVE)
+
+  createdAt   DateTime  @default(now())
+  activatedAt DateTime?
+  retiredAt   DateTime?
+  revokedAt   DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | SECURITY EVENTS
+ * |--------------------------------------------------------------------------
+ */
+
+model SecurityEvent {
+  id String @id @default(uuid())
+
+  type SecurityEventType
+
+  userId   String?
+  clientId String?
+
+  ipAddress String?
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | AUDIT LOG
+ * |--------------------------------------------------------------------------
+ */
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  action String
+
+  userId   String?
+  clientId String?
+
+  resourceType String?
+  resourceId   String?
+
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | TRANSACTIONAL OUTBOX
+ * |--------------------------------------------------------------------------
+ */
+
+model OutboxEvent {
+  id String @id @default(uuid())
+
+  /**
+   * Example:
+   * UserCreated
+   * UserPasswordChanged
+   * UserLoggedIn
+   * ClientCreated
+   */
+  eventType String
+
+  /**
+   * Entity that caused the event.
+   */
+  aggregateType String
+  aggregateId   String
+
+  payload Json
+
+  status OutboxStatus @default(PENDING)
+
+  attempts Int @default(0)
+
+  availableAt DateTime  @default(now())
+  publishedAt DateTime?
+
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@index([eventType])
+  @@index([createdAt])
 }
