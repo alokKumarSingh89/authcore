@@ -1,0 +1,30 @@
+model OutboxEvent {
+  id String @id @default(uuid())
+
+  eventType String
+
+  aggregateType String
+
+  aggregateId String
+
+  payload Json
+
+  status OutboxStatus @default(PENDING)
+
+  attempts Int @default(0)
+
+  availableAt DateTime @default(now())
+
+  publishedAt DateTime?
+
+  lastError String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@index([eventType])
+  @@index([createdAt])
+}

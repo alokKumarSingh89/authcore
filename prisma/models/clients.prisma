@@ -1,0 +1,86 @@
+model Client {
+  id String @id @default(uuid())
+
+  /**
+   * Public client identifier.
+   * Examples:
+   * web-app
+   * mobile-app
+   * order-service
+   * payment-service
+   */
+  clientId String @unique
+
+  name String
+
+  description String?
+
+  type ClientType
+
+  status ClientStatus @default(ACTIVE)
+
+  /**
+   * OAuth redirect URLs.
+   * JSON for now.
+   */
+  redirectUris Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions Session[]
+
+  credentials ClientCredential[]
+
+  permissions ClientPermission[]
+
+  auditLogs AuditLog[]
+
+  securityEvents SecurityEvent[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model ClientCredential {
+  id String @id @default(uuid())
+
+  clientId String
+
+  name String?
+
+  /**
+   * Hash of client secret.
+   */
+  secretHash String @unique
+
+  createdAt DateTime @default(now())
+
+  expiresAt DateTime?
+
+  lastUsedAt DateTime?
+
+  revokedAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model ClientPermission {
+  id String @id @default(uuid())
+
+  clientId     String
+  permissionId String
+
+  assignedAt DateTime @default(now())
+
+  client     Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, permissionId])
+  @@index([clientId])
+  @@index([permissionId])
+}

@@ -1,0 +1,35 @@
+model SigningKey {
+  id String @id @default(uuid())
+
+  /**
+   * JWT `kid`.
+   */
+  keyId String @unique
+
+  algorithm String
+
+  keyType String
+
+  /**
+   * Public key.
+   */
+  publicKey String
+
+  /**
+   * Encrypted private key.
+   */
+  privateKeyEncrypted String
+
+  status SigningKeyStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  activatedAt DateTime?
+
+  retiredAt DateTime?
+
+  revokedAt DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+}
