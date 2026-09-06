@@ -1,0 +1,57 @@
+model TokenFamily {
+  id String @id @default(uuid())
+
+  userId    String
+  sessionId String
+
+  status TokenFamilyStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  expiresAt DateTime
+
+  revokedAt DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id String @id @default(uuid())
+
+  tokenFamilyId String
+
+  /**
+   * Hash of the refresh token.
+   * Never store the raw refresh token.
+   */
+  tokenHash String @unique
+
+  issuedAt DateTime @default(now())
+
+  expiresAt DateTime
+
+  usedAt DateTime?
+
+  revokedAt DateTime?
+
+  replacedByTokenId String? @unique
+
+  tokenFamily TokenFamily @relation(fields: [tokenFamilyId], references: [id], onDelete: Cascade)
+
+  replacedBy RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+
+  replaces RefreshToken? @relation("RefreshTokenReplacement")
+
+  @@index([tokenFamilyId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@index([revokedAt])
+}

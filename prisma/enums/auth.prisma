@@ -1,0 +1,19 @@
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum TokenFamilyStatus {
+  ACTIVE
+  REVOKED
+  COMPROMISED
+  EXPIRED
+}
+
+enum MfaType {
+  TOTP
+  SMS
+  EMAIL
+  PASSKEY
+}

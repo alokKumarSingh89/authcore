@@ -1,0 +1,26 @@
+model SecurityEvent {
+  id String @id @default(uuid())
+
+  type SecurityEventType
+
+  userId String?
+
+  clientId String?
+
+  ipAddress String?
+
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([type])
+  @@index([createdAt])
+}
