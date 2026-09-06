@@ -1,14 +1,20 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service.js';
 import { PasswordService } from './services/password.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { DEFAULT_USER_ROLE } from './constants/auth.constants.js';
+import { AuthenticationService } from './services/authentication.service.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
+    private readonly authenticationService: AuthenticationService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -116,6 +122,10 @@ export class AuthService {
       status: result.status,
       createdAt: result.createdAt,
     };
+  }
+
+  async validateUser(email: string, password: string) {
+    return this.authenticationService.validateUser(email, password);
   }
 
   private normalizeEmail(email: string): string {
