@@ -53,11 +53,14 @@ jobs:
       - name: Run migrations
         run: npx prisma migrate deploy
 
+      - name: Seed database
+        run: npx prisma db seed
+
       - name: Unit tests
-        run: npm test -- --runInBand
+        run: npm test
 
       - name: E2E tests
-        run: npm run test:e2e -- --runInBand
+        run: npm run test:e2e
 
       - name: Build
         run: npm run build

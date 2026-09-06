@@ -5,6 +5,7 @@ enum SigningKeyStatus {
 }
 
 enum SecurityEventType {
+  USER_REGISTERED
   LOGIN_SUCCESS
   LOGIN_FAILED
 
