@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
-
+import { ConfigModule } from '@nestjs/config';
+import configuration from './config/configuration.js';
+import { validateEnvironment } from './config/env.validation.js';
+import { HealthModule } from './health/health.module.js';
+import { DatabaseModule } from './database/database.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
@@ -14,8 +16,16 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       appSecret: 'YOUR_APP_SECRET',
       serviceId: 'authcore',
     }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      load: [configuration],
+      validate: validateEnvironment,
+    }),
+    HealthModule,
+    DatabaseModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
