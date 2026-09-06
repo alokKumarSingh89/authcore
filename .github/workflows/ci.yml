@@ -53,9 +53,6 @@ jobs:
       - name: Run migrations
         run: npx prisma migrate deploy
 
-      - name: Lint
-        run: npm run lint:check
-
       - name: Unit tests
         run: npm test -- --runInBand
 

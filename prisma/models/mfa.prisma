@@ -1,0 +1,47 @@
+model MfaConfiguration {
+  id String @id @default(uuid())
+
+  userId String
+
+  type MfaType
+
+  enabled Boolean @default(false)
+
+  /**
+   * Encrypted TOTP secret.
+   */
+  secretEncrypted String?
+
+  verifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  recoveryCodes MfaRecoveryCode[]
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([enabled])
+}
+
+model MfaRecoveryCode {
+  id String @id @default(uuid())
+
+  mfaConfigurationId String
+
+  /**
+   * Hash only.
+   */
+  codeHash String @unique
+
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  mfaConfiguration MfaConfiguration @relation(fields: [mfaConfigurationId], references: [id], onDelete: Cascade)
+
+  @@index([mfaConfigurationId])
+  @@index([usedAt])
+}

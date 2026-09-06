@@ -1,0 +1,54 @@
+model User {
+  id String @id @default(uuid())
+
+  email String  @unique
+  phone String? @unique
+
+  firstName String?
+  lastName  String?
+
+  status UserStatus @default(PENDING_VERIFICATION)
+
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credential Credential?
+
+  roles UserRole[]
+
+  sessions Session[]
+
+  tokenFamilies TokenFamily[]
+
+  mfaConfigurations MfaConfiguration[]
+
+  oauthAccounts OAuthAccount[]
+
+  securityEvents SecurityEvent[]
+
+  auditLogs AuditLog[]
+  devices   Device[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Credential {
+  id String @id @default(uuid())
+
+  userId String @unique
+
+  passwordHash String
+
+  passwordChangedAt DateTime?
+
+  passwordVersion Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,32 @@
+model OAuthAccount {
+  id String @id @default(uuid())
+
+  userId String
+
+  provider OAuthProvider
+
+  providerAccountId String
+
+  /**
+   * Sensitive OAuth tokens.
+   * These will be encrypted by the application.
+   */
+  accessTokenEncrypted String?
+
+  refreshTokenEncrypted String?
+
+  expiresAt DateTime?
+
+  scope String?
+
+  tokenType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}

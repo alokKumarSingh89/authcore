@@ -1,0 +1,17 @@
+enum ClientType {
+  PUBLIC
+  CONFIDENTIAL
+  SERVICE
+}
+
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+  APPLE
+}
