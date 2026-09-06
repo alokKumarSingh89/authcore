@@ -1,4 +1,7 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { UnauthorizedException } from '@nestjs/common';
+
 import { AuthenticationService } from './authentication.service.js';
 
 describe('AuthenticationService', () => {
@@ -7,16 +10,27 @@ describe('AuthenticationService', () => {
       findUnique: vi.fn(),
     },
   };
+
   const passwordService = {
     verify: vi.fn(),
   };
 
+  const securityEventService = {
+    record: vi.fn(),
+  };
+
   let service: AuthenticationService;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
-    service = new AuthenticationService(prisma as any, passwordService as any);
+    service = new AuthenticationService(
+      prisma as any,
+      passwordService as any,
+      securityEventService as any,
+    );
   });
+
   it('should authenticate a valid user', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -28,11 +42,14 @@ describe('AuthenticationService', () => {
         passwordHash: 'hashed-password',
       },
     });
+
     passwordService.verify.mockResolvedValue(true);
+
     const result = await service.validateUser(
       'TEST@EXAMPLE.COM',
       'password123',
     );
+
     expect(result).toEqual({
       id: 'user-1',
       email: 'test@example.com',
@@ -40,24 +57,40 @@ describe('AuthenticationService', () => {
       lastName: 'User',
       status: 'ACTIVE',
     });
+
     expect(passwordService.verify).toHaveBeenCalledWith(
       'hashed-password',
       'password123',
     );
+
+    expect(securityEventService.record).toHaveBeenCalledWith({
+      type: 'LOGIN_SUCCESS',
+      userId: 'user-1',
+      metadata: {
+        method: 'PASSWORD',
+      },
+    });
   });
+
   it('should reject an unknown user', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(
       service.validateUser('unknown@example.com', 'password123'),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(securityEventService.record).toHaveBeenCalledWith({
+      type: 'LOGIN_FAILED',
+      metadata: {
+        reason: 'INVALID_CREDENTIALS',
+      },
+    });
   });
+
   it('should reject an inactive user', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
       email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
       status: 'PENDING_VERIFICATION',
       credential: {
         passwordHash: 'hashed-password',
@@ -69,14 +102,21 @@ describe('AuthenticationService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
     expect(passwordService.verify).not.toHaveBeenCalled();
+
+    expect(securityEventService.record).toHaveBeenCalledWith({
+      type: 'LOGIN_FAILED',
+      userId: 'user-1',
+      metadata: {
+        reason: 'ACCOUNT_NOT_ACTIVE',
+        status: 'PENDING_VERIFICATION',
+      },
+    });
   });
 
   it('should reject an invalid password', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
       email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
       status: 'ACTIVE',
       credential: {
         passwordHash: 'hashed-password',
@@ -88,14 +128,20 @@ describe('AuthenticationService', () => {
     await expect(
       service.validateUser('test@example.com', 'wrong-password'),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(securityEventService.record).toHaveBeenCalledWith({
+      type: 'LOGIN_FAILED',
+      userId: 'user-1',
+      metadata: {
+        reason: 'INVALID_CREDENTIALS',
+      },
+    });
   });
 
   it('should reject a user without credentials', async () => {
     prisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
       email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
       status: 'ACTIVE',
       credential: null,
     });
@@ -103,5 +149,12 @@ describe('AuthenticationService', () => {
     await expect(
       service.validateUser('test@example.com', 'password123'),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(securityEventService.record).toHaveBeenCalledWith({
+      type: 'LOGIN_FAILED',
+      metadata: {
+        reason: 'INVALID_CREDENTIALS',
+      },
+    });
   });
 });
