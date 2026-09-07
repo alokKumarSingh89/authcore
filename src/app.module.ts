@@ -6,6 +6,7 @@ import { HealthModule } from './health/health.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { SecurityModule } from './security/security.module.js';
+import { TokensModule } from './tokens/tokens.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SecurityModule } from './security/security.module.js';
     DatabaseModule,
     AuthModule,
     SecurityModule,
+    TokensModule,
   ],
   controllers: [],
   providers: [],

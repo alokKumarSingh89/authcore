@@ -12,4 +12,7 @@ export default () => ({
     accessTokenTtl: process.env.JWT_ACCESS_TOKEN_TTL ?? '10m',
     refreshTokenTtl: process.env.JWT_REFRESH_TOKEN_TTL ?? '30d',
   },
+  authcore: {
+    keyEncryptionKey: process.env.AUTHCORE_KEY_ENCRYPTION_KEY,
+  },
 });
