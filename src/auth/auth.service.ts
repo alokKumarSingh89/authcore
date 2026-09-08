@@ -8,6 +8,8 @@ import { PasswordService } from './services/password.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { DEFAULT_USER_ROLE } from './constants/auth.constants.js';
 import { AuthenticationService } from './services/authentication.service.js';
+import { SessionService } from '../sessions/services/session.service.js';
+import { TokenService } from '../tokens/token.service.js';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +17,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
     private readonly authenticationService: AuthenticationService,
+    private readonly sessionService: SessionService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -121,6 +125,40 @@ export class AuthService {
       lastName: result.lastName,
       status: result.status,
       createdAt: result.createdAt,
+    };
+  }
+  async login(params: {
+    user: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      status: string;
+    };
+    ipAddress?: string;
+    userAgent?: string;
+    clientId?: string;
+  }) {
+    const session = await this.sessionService.createSession({
+      userId: params.user.id,
+      clientId: params.clientId,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent,
+    });
+    const accessToken = await this.tokenService.createAccessToken({
+      userId: params.user.id,
+      sessionId: session.id,
+      clientId: params.clientId,
+      audience: params.clientId ?? 'authcore',
+    });
+    return {
+      accessToken,
+      tokenType: 'Bearer',
+      user: params.user,
+      session: {
+        id: session.id,
+        expiresAt: session.expiresAt,
+      },
     };
   }
 

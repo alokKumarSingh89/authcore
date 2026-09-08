@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { SecurityModule } from './security/security.module.js';
 import { TokensModule } from './tokens/tokens.module.js';
+import { SessionModule } from './sessions/sessions.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TokensModule } from './tokens/tokens.module.js';
     AuthModule,
     SecurityModule,
     TokensModule,
+    SessionModule,
   ],
   controllers: [],
   providers: [],

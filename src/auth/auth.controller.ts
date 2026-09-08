@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -10,6 +11,8 @@ import {
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LocalAuthGuard } from './guards/local-auth.guard.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -24,7 +27,32 @@ export class AuthController {
   @Post('login')
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async login(@Req() request: Request & { user: unknown }) {
+  async login(
+    @Req()
+    request: Request & {
+      user: {
+        id: string;
+        email: string;
+        firstName: string | null;
+        lastName: string | null;
+        status: string;
+      };
+    },
+  ) {
+    return this.authService.login({
+      user: request.user,
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
+  }
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async me(
+    @Req()
+    request: Request & {
+      user: unknown;
+    },
+  ) {
     return {
       user: request.user,
     };

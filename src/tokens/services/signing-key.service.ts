@@ -92,4 +92,20 @@ export class SigningKeyService {
       },
     });
   }
+  async getPublicKeyByKeyId(keyId: string) {
+    return this.prisma.signingKey.findFirst({
+      where: {
+        keyId,
+        status: {
+          in: ['ACTIVE', 'RETIRED'],
+        },
+      },
+      select: {
+        keyId: true,
+        algorithm: true,
+        keyType: true,
+        publicKey: true,
+      },
+    });
+  }
 }
