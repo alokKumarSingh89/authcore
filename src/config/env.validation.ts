@@ -1,9 +1,11 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsHexadecimal,
   IsInt,
   IsNotEmpty,
   IsString,
+  Length,
   Max,
   Min,
   validateSync,
@@ -39,6 +41,12 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   JWT_REFRESH_TOKEN_TTL!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsHexadecimal()
+  @Length(64, 64)
+  AUTHCORE_KEY_ENCRYPTION_KEY!: string;
 }
 
 export function validateEnvironment(
@@ -47,7 +55,6 @@ export function validateEnvironment(
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
-
   const errors = validateSync(validated, {
     skipMissingProperties: false,
   });
