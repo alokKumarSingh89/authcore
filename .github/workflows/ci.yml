@@ -34,6 +34,7 @@ jobs:
       JWT_ISSUER: authcore
       JWT_ACCESS_TOKEN_TTL: 10m
       JWT_REFRESH_TOKEN_TTL: 30d
+      AUTHCORE_KEY_ENCRYPTION_KEY: 3892b0fe1220a38fde1631f5c657a2d27ed165d0f356e96c9536c82b742e1fcd
     steps:
       - name: Checkout
         uses: actions/checkout@v4
