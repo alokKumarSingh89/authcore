@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LocalAuthGuard } from './guards/local-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { Request } from 'express';
+import { JwtPayload } from '../tokens/interfaces/jwt-payload.interface.js';
 
 @Controller('auth')
 export class AuthController {
@@ -50,7 +51,7 @@ export class AuthController {
   async me(
     @Req()
     request: Request & {
-      user: unknown;
+      user: JwtPayload;
     },
   ) {
     return {
