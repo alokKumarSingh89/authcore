@@ -10,6 +10,8 @@ import { DEFAULT_USER_ROLE } from './constants/auth.constants.js';
 import { AuthenticationService } from './services/authentication.service.js';
 import { SessionService } from '../sessions/services/session.service.js';
 import { TokenService } from '../tokens/token.service.js';
+import { RefreshTokenService } from './services/refresh-token.service.js';
+import { RefreshTokenRotationService } from './services/refresh-token-rotation.service.js';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,8 @@ export class AuthService {
     private readonly authenticationService: AuthenticationService,
     private readonly sessionService: SessionService,
     private readonly tokenService: TokenService,
+    private readonly refreshTokenService: RefreshTokenService,
+    private readonly refreshTokenRotationService: RefreshTokenRotationService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -145,14 +149,23 @@ export class AuthService {
       ipAddress: params.ipAddress,
       userAgent: params.userAgent,
     });
+    const tokenFamily = await this.refreshTokenService.createTokenFamily({
+      userId: params.user.id,
+      sessionId: session.id,
+    });
     const accessToken = await this.tokenService.createAccessToken({
       userId: params.user.id,
       sessionId: session.id,
       clientId: params.clientId,
       audience: params.clientId ?? 'authcore',
     });
+    const refreshToken = await this.refreshTokenService.createRefreshToken({
+      tokenFamilyId: tokenFamily.id,
+      familyExpiresAt: tokenFamily.expiresAt,
+    });
     return {
       accessToken,
+      refreshToken: refreshToken.token,
       tokenType: 'Bearer',
       user: params.user,
       session: {
@@ -161,7 +174,27 @@ export class AuthService {
       },
     };
   }
+  async refresh(rawRefreshToken: string) {
+    const result =
+      await this.refreshTokenRotationService.rotate(rawRefreshToken);
+    const clientId = result.session.clientId ?? 'authcore';
 
+    const accessToken = await this.tokenService.createAccessToken({
+      userId: result.user.id,
+      sessionId: result.session.id,
+      clientId: result.session.clientId ?? undefined,
+      audience: clientId,
+    });
+    return {
+      accessToken,
+      refreshToken: result.refreshToken,
+      tokenType: 'Bearer',
+      session: {
+        id: result.session.id,
+        expiresAt: result.session.expiresAt,
+      },
+    };
+  }
   async validateUser(email: string, password: string) {
     return this.authenticationService.validateUser(email, password);
   }

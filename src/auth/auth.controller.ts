@@ -13,6 +13,8 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LocalAuthGuard } from './guards/local-auth.guard.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { Request } from 'express';
+import { JwtPayload } from '../tokens/interfaces/jwt-payload.interface.js';
+import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -50,11 +52,16 @@ export class AuthController {
   async me(
     @Req()
     request: Request & {
-      user: unknown;
+      user: JwtPayload;
     },
   ) {
     return {
       user: request.user,
     };
+  }
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 }
