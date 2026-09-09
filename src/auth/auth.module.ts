@@ -9,6 +9,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { SessionModule } from '../sessions/sessions.module.js';
 import { TokensModule } from '../tokens/tokens.module.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import { RefreshTokenService } from './services/refresh-token.service.js';
+import { RefreshTokenRotationService } from './services/refresh-token-rotation.service.js';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     LocalStrategy,
     JwtAuthGuard,
     JwtStrategy,
+    RefreshTokenService,
+    RefreshTokenRotationService,
   ],
 })
 export class AuthModule {}
