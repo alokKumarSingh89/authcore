@@ -6,7 +6,12 @@ import { Prisma } from '../generated/prisma/client.js';
 export class SecurityEventService {
   constructor(private readonly prisma: PrismaService) {}
   async record(params: {
-    type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'LOGOUT' | 'LOGOUT_ALL';
+    type:
+      | 'REFRESH_TOKEN_REUSE'
+      | 'LOGIN_SUCCESS'
+      | 'LOGIN_FAILED'
+      | 'LOGOUT'
+      | 'LOGOUT_ALL';
 
     userId?: string;
     clientId?: string;
